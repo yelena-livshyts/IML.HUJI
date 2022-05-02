@@ -153,6 +153,10 @@ class LDA(BaseEstimator):
             Performance under missclassification loss function
         """
         from ...metrics import misclassification_error
+<<<<<<< HEAD
         y_pred = self._predict(X)
         loss = misclassification_error(y, y_pred)
         return loss
+=======
+        raise NotImplementedError()
+>>>>>>> c87be5d7872d40b4409d315bf2d2360bc8a3d675
