@@ -1,6 +1,13 @@
 from __future__ import annotations
 import numpy as np
+import copy
+import math
+from math import e
 from numpy.linalg import inv, det, slogdet
+
+
+
+
 
 
 class UnivariateGaussian:
@@ -8,6 +15,7 @@ class UnivariateGaussian:
     Class for univariate Gaussian Distribution Estimator
     """
     def __init__(self, biased_var: bool = False) -> UnivariateGaussian:
+
         """
         Estimator for univariate Gaussian mean and variance parameters
 
@@ -51,8 +59,19 @@ class UnivariateGaussian:
         Sets `self.mu_`, `self.var_` attributes according to calculated estimation (where
         estimator is either biased or unbiased). Then sets `self.fitted_` attribute to `True`
         """
-        raise NotImplementedError()
-
+        length = len(X)
+        sum = np.sum(X)
+        X2 = copy.deepcopy(X)
+        mu = sum / length
+        X2 = X2-mu
+        X2 = np.multiply(X2,X2)
+        sum2 = np.sum(X2)
+        if self.biased_==True:
+            var = sum2 / (length)
+        else:
+            var=sum2/(length-1)
+        self.mu_=mu
+        self.var_=var
         self.fitted_ = True
         return self
 
@@ -76,7 +95,19 @@ class UnivariateGaussian:
         """
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
-        raise NotImplementedError()
+        mu = self.mu_
+        var = self.var_
+        X2 = copy.deepcopy(X)
+        X2 = X2 - mu
+        X2 = np.multiply(X2, X2)
+        X2 = X2/var
+        X2 = X2*(-0.5)
+        lenght = len(X)
+        X3 = np.zeros(lenght,)
+        for i in range (lenght):
+            X3[i]= (e**X2[i])/(math.sqrt(var*2*math.pi))
+        return X3
+
 
     @staticmethod
     def log_likelihood(mu: float, sigma: float, X: np.ndarray) -> float:
@@ -97,7 +128,15 @@ class UnivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-        raise NotImplementedError()
+        X2 = copy.deepcopy(X)
+        X2 = X2 - mu
+        X2 = np.multiply(X2,X2)
+        a = (np.sum(X2)) / (sigma*(-2))
+        lenght = len(X)
+        devisor =(math.sqrt(sigma * 2 * math.pi))**lenght
+        log_likelihood= math.log(1/devisor)+a
+        return log_likelihood
+
 
 
 class MultivariateGaussian:
@@ -143,8 +182,16 @@ class MultivariateGaussian:
         Sets `self.mu_`, `self.cov_` attributes according to calculated estimation.
         Then sets `self.fitted_` attribute to `True`
         """
-        raise NotImplementedError()
-
+        X2 = copy.deepcopy(X)
+        X2= X2.transpose()
+        dim = len(X2[0])
+        self.mu_=np.zeros(len(X2), )
+        for i in range(len(X2)):
+            self.mu_[i] = (np.sum(X2[i]))/dim
+        self.mu_=self.mu_
+        X= X-self.mu_
+        sigma = (np.dot(X.transpose(), X))/(len(X)-1)
+        self.cov_ = sigma
         self.fitted_ = True
         return self
 
@@ -168,7 +215,17 @@ class MultivariateGaussian:
         """
         if not self.fitted_:
             raise ValueError("Estimator must first be fitted before calling `pdf` function")
-        raise NotImplementedError()
+        length = len(X)
+        X3 = np.zeros(length, )
+        det = np.linalg.det(self.cov_)
+        for i in range(length):
+            X2 = X[i]-self.mu_
+            in_power = (np.matmul(np.matmul(X2.transpose(),inv(self.cov_)),X2))/(-2)
+            X3[i] = (math.e**in_power)/math.sqrt(((2*math.pi)**len(X2))*det)
+        return X3
+
+
+
 
     @staticmethod
     def log_likelihood(mu: np.ndarray, cov: np.ndarray, X: np.ndarray) -> float:
@@ -189,4 +246,16 @@ class MultivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-        raise NotImplementedError()
+        length = len(X)
+        X3 = np.zeros(length, )
+        det = np.linalg.det(cov)
+        cov_inv =inv(cov)
+        for i in range(length):
+            X2 = X[i] - mu
+            X3[i] = (np.matmul(np.matmul(X2.transpose(), cov_inv),
+                                  X2)) / (2)
+        dim = length*len(X[0])
+        a1 = (((-1)*dim)/2)*math.log(2*math.pi)
+        log_likelihood = a1 - (length/2)*(math.log(1/det)) - np.sum(X3)
+        return log_likelihood
+

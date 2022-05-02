@@ -16,7 +16,18 @@ def mean_square_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     -------
     MSE of given predictions
     """
-    raise NotImplementedError()
+    #length = len(y_true)
+    #a = np.zeros(length,)
+    #for i in range(length):
+    #    a[i] = (y_true[i]-y_pred[i])**2
+    #mse = (1/length)*(np.sum(a))
+
+    #return mse
+    num_samples = y_true.size
+    squared_diff = y_true - y_pred
+    squared_diff = squared_diff**2
+    sam_samples = sum(squared_diff)
+    return (1/num_samples)*sam_samples
 
 
 def misclassification_error(y_true: np.ndarray, y_pred: np.ndarray, normalize: bool = True) -> float:
@@ -31,12 +42,21 @@ def misclassification_error(y_true: np.ndarray, y_pred: np.ndarray, normalize: b
         Predicted response values
     normalize: bool, default = True
         Normalize by number of samples or not
-
     Returns
     -------
     Misclassification of given predictions
     """
-    raise NotImplementedError()
+    error = 0
+    for i in range(len(y_true)):
+        if y_true[i] != y_pred[i]:
+            error+=1
+    if normalize == True:
+        return error/len(y_true)
+
+    else:
+        return error
+
+
 
 
 def accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
@@ -52,9 +72,27 @@ def accuracy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 
     Returns
     -------
+
     Accuracy of given predictions
+
     """
-    raise NotImplementedError()
+    classes = []
+    numClasses=0
+    for i in range(len(y_true)):
+        if y_true[i] not in classes:
+            classes.append(y_true[i])
+            numClasses+=1
+
+    true = 0
+    for i in range(len(y_true)):
+        if y_true[i] == y_pred[i]:
+            true+=1
+
+    return true/numClasses
+
+
+
+
 
 
 def cross_entropy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
@@ -73,3 +111,4 @@ def cross_entropy(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     Cross entropy of given predictions
     """
     raise NotImplementedError()
+

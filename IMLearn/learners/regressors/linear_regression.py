@@ -4,6 +4,8 @@ from ...base import BaseEstimator
 import numpy as np
 from numpy.linalg import pinv
 
+from ...metrics import mean_square_error, loss_functions
+
 
 class LinearRegression(BaseEstimator):
     """
@@ -12,7 +14,7 @@ class LinearRegression(BaseEstimator):
     Solving Ordinary Least Squares optimization problem
     """
 
-    def __init__(self, include_intercept: bool = True) -> LinearRegression:
+    def __init__(self, include_intercept: bool = True) -> None:
         """
         Instantiate a linear regression estimator
 
@@ -47,9 +49,25 @@ class LinearRegression(BaseEstimator):
 
         Notes
         -----
+
         Fits model with or without an intercept depending on value of `self.include_intercept_`
         """
-        raise NotImplementedError()
+        if self.include_intercept_ ==True:
+            a = np.zeros((len(X), len(X[0])+1))
+            for i in range(len(X)):
+                a[i][0] =1
+                for k in range(len(X[0])):
+                    a[i][k+1] = X[i][k]
+
+
+        else:
+            a = X
+        psoude_inv = pinv(a.transpose()).transpose()
+        self.coefs_ = np.matmul(psoude_inv, y)
+
+
+
+
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -65,7 +83,11 @@ class LinearRegression(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        if self.include_intercept_ == True:
+            new_coefs = np.delete(self.coefs_, 0)
+            return np.matmul(X, new_coefs) + self.coefs_[0]
+
+        return np.matmul(X, self.coefs_)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -84,4 +106,6 @@ class LinearRegression(BaseEstimator):
         loss : float
             Performance under MSE loss function
         """
-        raise NotImplementedError()
+        y_pred = self._predict(X)
+        mse = loss_functions.mean_square_error(y, y_pred)
+        return mse

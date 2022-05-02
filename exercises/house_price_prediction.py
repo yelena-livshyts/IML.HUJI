@@ -1,3 +1,4 @@
+import math
 from os import path
 
 from IMLearn.utils import split_train_test
@@ -30,15 +31,8 @@ def load_data(filename: str):
     """
     df = pd.read_csv(filename).dropna().drop_duplicates()
     for c in ["id", "date", "zipcode", "lat", "long"]:
-        df = df.drop(c, 1)
+        df = df.drop(c, axis=1)
     #df["zipcode"] = df["zipcode"].astype(int)
-    df["floors"] = df["floors"].astype(int)
-    df["price"] = df["price"].astype(int)
-    df["yr_built"] = df["yr_built"].astype(int)
-    df["sqft_lot15"] = df["sqft_lot15"].astype(int)
-    df["sqft_basement"] = df["sqft_basement"].astype(int)
-    df["sqft_living"] = df["sqft_living"].astype(int)
-    df["sqft_above"] = df["sqft_above"].astype(int)
 
     for c in ["price", "sqft_living", "sqft_lot", "sqft_above", "yr_built", "sqft_living15", "sqft_lot15"]:
         df = df[df[c] > 0]
@@ -47,10 +41,9 @@ def load_data(filename: str):
 
     df["recently_renovated"] = np.where(
         df["yr_renovated"] >= np.percentile(df.yr_renovated.unique(), 60), 1, 0)
-    df = df.drop("yr_renovated", 1)
+    df = df.drop("yr_renovated", axis=1)
     df["decade_built"] = (df["yr_built"] / 100).astype(int)
-    df = df.drop("yr_built", 1)
-    df = pd.get_dummies(df, prefix='decade_built_', columns=['decade_built'])
+    df = df.drop("yr_built", axis=1)
 
 
     df = df[df["waterfront"].isin([0, 1]) &
@@ -60,7 +53,7 @@ def load_data(filename: str):
 
 
 #return the samples and the vector of their prices
-    return df.drop("price", 1), df.price
+    return df.drop("price", axis=1), df.price
 
 
 
@@ -96,17 +89,6 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
 
 if __name__ == '__main__':
     df = pd.read_csv(r"C:\Users\elena\PycharmProjects\IML.HUJI\datasets\house_prices.csv")
-
-    # print(df)
-    #X, y = load_data(r"C:\Users\elena\PycharmProjects\IML.HUJI\datasets\house_prices.csv")
-    # X = np.array([[1], [2], [3], [4], [5], [6], [7], [8]])
-    # y = Series([9,10,11,12, 13,14,15,16])
-    # a = pd.DataFrame(X, columns=["a"])
-    # print(split_train_test(a,y, 0.5)[0])
-    # print(split_train_test(a, y, 0.5)[1])
-    # print(split_train_test(a, y, 0.5)[2])
-    # print(split_train_test(a, y, 0.5)[3])
-
     np.random.seed(0)
     # Question 1 - Load and preprocessing of housing prices dataset
     X, y = load_data(r"C:\Users\elena\PycharmProjects\IML.HUJI\datasets\house_prices.csv")
@@ -118,24 +100,71 @@ if __name__ == '__main__':
     # Question 3 - Split samples into training- and testing sets.
     splitTuple = split_train_test(X, y, 0.75)
 
+
     # Question 4 - Fit model over increasing percentages of the overall training data
     trainingSetX = splitTuple[0]
     trainingSety = splitTuple[1]
     testSetX = splitTuple[2].to_numpy()
     testSety = splitTuple[3].to_numpy()
-    average_loss = np.array(91, )
+    average_loss = np.zeros(91, )
+    percent = np.zeros(91, )
+    variances = np.zeros(91, )
+
     for i in range(10,101):
         av_mse=0
+        losses = np.zeros(10, )
         for j in range(10):
             split_by_i = split_train_test(trainingSetX, trainingSety, i/100)
             pSample = split_by_i[0].to_numpy()
             responces= split_by_i[1].to_numpy()
             lr =LinearRegression()
-            lr.fit(pSample, responces)
-            mse = lr.loss(testSetX, testSety)
+            lr._fit(pSample, responces)
+            mse = lr._loss(testSetX, testSety)
+            losses[j] = mse
             av_mse=av_mse+mse
+        percent[i-10]=i
         av_mse= av_mse/10
         average_loss[i-10]= av_mse
+        variances[i-10] = math.sqrt(np.var(losses))*2
+
+    fig = go.Figure([
+        go.Scatter(
+            name='average loss',
+            x=percent,
+            y=average_loss,
+            mode='lines',
+            line=dict(color='rgb(31, 119, 180)'),
+        ),
+        go.Scatter(
+            name='Upper Bound',
+            x=percent,
+            y=average_loss + variances,
+            mode='lines',
+            marker=dict(color="#444"),
+            line=dict(width=0),
+            showlegend=False
+        ),
+
+        go.Scatter(
+            name='Lower Bound',
+            x=percent,
+            y=average_loss - variances,
+            marker=dict(color="#444"),
+            line=dict(width=0),
+            mode='lines',
+            fillcolor='rgba(68, 68, 68, 0.3)',
+            fill='tonexty',
+            showlegend=False
+        )
+    ])
+    fig.update_layout(
+        xaxis_title = '%p',
+        yaxis_title='average loss',
+        title='mean loss as function of %p with confidence interval',
+        hovermode="x"
+    )
+    fig.show()
+
 
 
 
@@ -145,4 +174,3 @@ if __name__ == '__main__':
     #   3) Test fitted model over test set
     #   4) Store average and variance of loss over test set
     # Then plot average loss as function of training size with error ribbon of size (mean-2*std, mean+2*std)
-    ##raise NotImplementedError()

@@ -4,6 +4,8 @@ from typing import NoReturn
 from ...base import BaseEstimator
 import numpy as np
 
+from ...metrics import loss_functions
+
 
 def default_callback(fit: Perceptron, x: np.ndarray, y: int):
     pass
@@ -90,7 +92,39 @@ class Perceptron(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.fit_intercept_`
         """
-        raise NotImplementedError()
+        dim_w=len(X[0])
+        old_X = X
+        if self.include_intercept_==True:
+            new_coor = [1]
+            new_X = np.zeros((len(X), len(X[0])+1))
+            for i in range(len(X)):
+                new_xi = np.r_[new_coor, X[i]]
+                new_X[i] = new_xi
+            dim_w +=1
+            X = new_X
+        w = np.zeros(dim_w,)
+        t=1
+        self.coefs_ = w
+        while t < self.max_iter_ :
+            transformed = False
+            for i in range(len(y)):
+                if (np.dot(w.transpose(), X[i]))*y[i]<=0:
+                    w = w+y[i]*X[i]
+                    self.fitted_ = True
+                    self.callback_(self,old_X[i], y[i])
+                    self.coefs_=w
+                    transformed = True
+                    break
+            if transformed == False:
+                self.callback_(self, old_X[i], y[i])
+                self.coefs_=w
+                return
+            t=t+1
+        self.coefs_ = w
+        return
+
+
+
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -106,7 +140,24 @@ class Perceptron(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        prediction = np.zeros(len(X),)
+        if self.include_intercept_ == True:
+            new_coefs = np.delete(self.coefs_, 0)
+            if X.ndim == 1:
+                a = np.matmul(X, new_coefs)+ self.coefs_[0]
+                a2 = np.zeros(1,)
+                a2[0]=a
+                prediction= a2
+            else:
+                prediction= np.matmul(X, new_coefs)+ self.coefs_[0]
+        else:
+            prediction= np.matmul(X,self.coefs_)
+        for i in range(len(prediction)):
+            if prediction[i]<0:
+                prediction[i]= -1
+            if prediction[i]>0:
+                prediction[i] = 1
+        return prediction
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -125,4 +176,6 @@ class Perceptron(BaseEstimator):
         loss : float
             Performance under missclassification loss function
         """
-        raise NotImplementedError()
+        y_pred = self._predict(X)
+        error = loss_functions.misclassification_error(y, y_pred)
+        return error
