@@ -1,3 +1,5 @@
+from os import path
+
 from IMLearn.utils import split_train_test
 from IMLearn.learners.regressors import LinearRegression
 
@@ -7,6 +9,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import plotly.io as pio
+
+from pandas import Series
+
 pio.templates.default = "simple_white"
 
 
@@ -23,7 +28,40 @@ def load_data(filename: str):
     Design matrix and response vector (prices) - either as a single
     DataFrame or a Tuple[DataFrame, Series]
     """
-    raise NotImplementedError()
+    df = pd.read_csv(filename).dropna().drop_duplicates()
+    for c in ["id", "date", "zipcode", "lat", "long"]:
+        df = df.drop(c, 1)
+    #df["zipcode"] = df["zipcode"].astype(int)
+    df["floors"] = df["floors"].astype(int)
+    df["price"] = df["price"].astype(int)
+    df["yr_built"] = df["yr_built"].astype(int)
+    df["sqft_lot15"] = df["sqft_lot15"].astype(int)
+    df["sqft_basement"] = df["sqft_basement"].astype(int)
+    df["sqft_living"] = df["sqft_living"].astype(int)
+    df["sqft_above"] = df["sqft_above"].astype(int)
+
+    for c in ["price", "sqft_living", "sqft_lot", "sqft_above", "yr_built", "sqft_living15", "sqft_lot15"]:
+        df = df[df[c] > 0]
+    for c in ["bathrooms", "floors", "sqft_basement", "yr_renovated"]:
+        df = df[df[c] >= 0]
+
+    df["recently_renovated"] = np.where(
+        df["yr_renovated"] >= np.percentile(df.yr_renovated.unique(), 60), 1, 0)
+    df = df.drop("yr_renovated", 1)
+    df["decade_built"] = (df["yr_built"] / 100).astype(int)
+    df = df.drop("yr_built", 1)
+    df = pd.get_dummies(df, prefix='decade_built_', columns=['decade_built'])
+
+
+    df = df[df["waterfront"].isin([0, 1]) &
+            df["view"].isin(range(5)) &
+            df["condition"].isin(range(1, 6)) &
+            df["grade"].isin(range(1, 15))]
+
+
+#return the samples and the vector of their prices
+    return df.drop("price", 1), df.price
+
 
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
@@ -42,26 +80,69 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
 
     output_path: str (default ".")
         Path to folder in which plots are saved
+
     """
-    raise NotImplementedError()
+
+    for f in X:
+        rho = np.cov(X[f], y)[0, 1] / (np.std(X[f]) * np.std(y))
+
+        fig = px.scatter(pd.DataFrame({'x': X[f], 'y': y}), x="x", y="y",
+                         trendline="ols",
+                         title=f"Correlation Between {f} Values and Response <br>Pearson Correlation {rho}",
+                         labels={"x": f"{f} Values", "y": "Response Values"})
+        pio.write_image(fig, path.join(output_path,"Pearson Correlation of %s.png" % f))
+
 
 
 if __name__ == '__main__':
+    df = pd.read_csv(r"C:\Users\elena\PycharmProjects\IML.HUJI\datasets\house_prices.csv")
+
+    # print(df)
+    #X, y = load_data(r"C:\Users\elena\PycharmProjects\IML.HUJI\datasets\house_prices.csv")
+    # X = np.array([[1], [2], [3], [4], [5], [6], [7], [8]])
+    # y = Series([9,10,11,12, 13,14,15,16])
+    # a = pd.DataFrame(X, columns=["a"])
+    # print(split_train_test(a,y, 0.5)[0])
+    # print(split_train_test(a, y, 0.5)[1])
+    # print(split_train_test(a, y, 0.5)[2])
+    # print(split_train_test(a, y, 0.5)[3])
+
     np.random.seed(0)
     # Question 1 - Load and preprocessing of housing prices dataset
-    raise NotImplementedError()
+    X, y = load_data(r"C:\Users\elena\PycharmProjects\IML.HUJI\datasets\house_prices.csv")
+
 
     # Question 2 - Feature evaluation with respect to response
-    raise NotImplementedError()
+    feature_evaluation(X, y, )
 
     # Question 3 - Split samples into training- and testing sets.
-    raise NotImplementedError()
+    splitTuple = split_train_test(X, y, 0.75)
 
     # Question 4 - Fit model over increasing percentages of the overall training data
+    trainingSetX = splitTuple[0]
+    trainingSety = splitTuple[1]
+    testSetX = splitTuple[2].to_numpy()
+    testSety = splitTuple[3].to_numpy()
+    average_loss = np.array(91, )
+    for i in range(10,101):
+        av_mse=0
+        for j in range(10):
+            split_by_i = split_train_test(trainingSetX, trainingSety, i/100)
+            pSample = split_by_i[0].to_numpy()
+            responces= split_by_i[1].to_numpy()
+            lr =LinearRegression()
+            lr.fit(pSample, responces)
+            mse = lr.loss(testSetX, testSety)
+            av_mse=av_mse+mse
+        av_mse= av_mse/10
+        average_loss[i-10]= av_mse
+
+
+
     # For every percentage p in 10%, 11%, ..., 100%, repeat the following 10 times:
     #   1) Sample p% of the overall training data
     #   2) Fit linear model (including intercept) over sampled set
     #   3) Test fitted model over test set
     #   4) Store average and variance of loss over test set
     # Then plot average loss as function of training size with error ribbon of size (mean-2*std, mean+2*std)
-    raise NotImplementedError()
+    ##raise NotImplementedError()
